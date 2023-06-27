@@ -1,21 +1,34 @@
+///////// includes //////////////////////
+const express = require('express');
+const cookieParser = require('cookie-parser');
+const app = express();
+
 const mongodb = require('mongodb');
 const MongoClient = mongodb.MongoClient;
 
 const url = 'mongodb://localhost:27017';
 const dbName = 'QueuesData';
 
-// Функція для додавання нового екземпляру черги
-function addQueue(queueData, callback) {
-  MongoClient.connect(url, (err, client) => {
-    if (err) {
-      console.error('Помилка підключення до MongoDB:', err);
-      return;
-    }
+app.use(cookieParser());
+let db;
+
+
+///////// data functions //////////////////////
+MongoClient.connect(url, (err, client) => {
+  if (err) {
+    console.error('Помилка підключення до MongoDB:', err);
+    return;
+  }
   
-    const db = client.db(dbName);
+  db = client.db(dbName);
+  console.log('Підключено до MongoDB');
+});
+
+
+// Function for add new queue
+function addQueue(queueData, callback) {
     const queuesCollection = db.collection('queues');
   
-    // Створення нового екземпляру черги
     const newQueue = {
       id: queueData.id,
       ownerId: queueData.ownerId,
@@ -36,21 +49,14 @@ function addQueue(queueData, callback) {
       }
       client.close();
     });
-  });
 }
 
-// Функція для додавання нового учасника
+
+// Function for add new client
 function addUser(userData, callback) {
-  MongoClient.connect(url, (err, client) => {
-    if (err) {
-      console.error('Помилка підключення до MongoDB:', err);
-      return;
-    }
-  
-    const db = client.db(dbName);
+
     const usersCollection = db.collection('users');
   
-    // Створення нового учасника
     const newUser = {
       id: userData.id,
       name: userData.name,
@@ -67,10 +73,10 @@ function addUser(userData, callback) {
       }
       client.close();
     });
-  });
 }
 
-// Приклад використання функцій
+
+///////// test data //////////////////////
 const queueData = {
   id: 1,
   ownerId: 1,
@@ -98,4 +104,10 @@ addUser(userData, (err, result) => {
   } else {
     console.log('Учасник був успішно доданий');
   }
+});
+
+
+///////// setup server //////////////////////
+app.listen(3000, () => {
+  console.log('Сервер запущений на порту 3000');
 });
