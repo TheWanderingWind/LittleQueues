@@ -1,5 +1,6 @@
 from pymongo import MongoClient
 from flask import Flask
+from flask import render_template
 import uuid
 
 app = Flask(__name__)
@@ -59,8 +60,10 @@ def get_queue_by_id(id):
 
 # Main site
 @app.route('/')
-def hello():
-    return 'Hello, World!'
+def main_page():
+    data = {'message': 'Hello, word!'}
+
+    return render_template('test.html.j2', data=data)
 
 
 # Here we will get user id
@@ -75,9 +78,6 @@ if __name__ == '__main__':
 
     queues = db['queues']
     users = db['users']
-
-    for document in queues:
-        print(document)
 
     print('Сервер запущено')
 
