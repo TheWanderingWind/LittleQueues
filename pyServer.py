@@ -3,13 +3,13 @@ from pymongo import MongoClient
 from flask import Flask, render_template, request
 ### Main variable ###
 app = Flask(__name__)
-client = None
-db = None
-queues = None
-users = None
+client = MongoClient('mongodb://localhost:27017/')
+db = client['QueuesData']
+queues = db['queues']
+users = db['users']
 
 ### Includes for sessions ###
-from flask import uuid4 
+from uuid import uuid4 
 from datetime import datetime, timedelta
 import threading
 import time
@@ -37,14 +37,16 @@ def get_session(session_id):
 def create_session():
     ### ALL PRINT HERE FOR DEBUG ###
     print('Create new session')
-    while session_id == None:
+    session_id = None
+    while session_id is None:
         session_id = str(uuid4())
-        for ses in sessions:
-            if session_id == ses['id']:
-                if ses['status'] and ses['status'] != 'deleted':
-                    session_id = None
-                    break
+        #print(f'Sessions: {sessions}')
 
+        if session_id in sessions.keys():
+            if sessions[session_id]['status'] != 'deleted':
+                session_id = None
+                break
+        
     session = {
         'id': session_id, 
         'status': "downtime",
@@ -65,28 +67,31 @@ def cheking_sessions():
     ### ALL PRINT HERE FOR DEBUG ###
     print('cheking_sessions setup')
 
-    # delay
-    for i in range(4):
-        time.sleep(10)
-        if exit_process:
-            return
-    # total delay: 4*10 = 40 sec (0.(6) min)
-    # so little for debug
+    while True:
+        # delay
+        for i in range(2):
+            time.sleep(10)
+            if exit_process:
+                return
+        # total delay: 2*10 = 20 sec (0.(3) min)
+        # so little for debug
 
-    now_time = datetime.now()
-    print('Cheking sessions...')
+        now_time = datetime.now()
+        print('Cheking sessions...', end='\t')
 
-    lock.acquire()
-    for session in sessions:
-        if session['status'] == 'downtime':
-            if (session['last_activ'] - now_time) > timedelta(seconds=30):
-                closed_session = {
-                    'id': session['id'],
-                    'status': 'deleted',
-                }
-                sessions[session['id']] = closed_session
-                print(f'session with id {session["id"]} was closed')
-    lock.release()
+        lock.acquire()
+        for session in sessions:
+            if sessions[session]['status'] == 'downtime':
+                if (now_time - sessions[session]['last_activ']) > timedelta(seconds=30):
+                    closed_session = {
+                        'id': session,
+                        'status': 'deleted',
+                    }
+                    sessions[session] = closed_session
+                    print(f'\nsession with id {session} was closed')
+        lock.release()
+        print('Cheked')
+
 
 cheker_thread = threading.Thread(target=cheking_sessions)
 
@@ -149,20 +154,20 @@ def main_page():
         'user_status': request.user_status,
         'user_data': request.user_data
     }
-
+    
     return render_template('test.html.j2', data=output_data)
 
 
 # Here we will get user id
 @app.before_request
 def setup():
-    if request.session_id:
+    if  'session_id' in request.form:
         # if client has send session id
         session = get_session(request.session_id)
         if session:
             request.user_data = session
             request.user_status = 'permanent_user'
-    elif request.user_id:
+    elif 'user_id' in request.form:
         # if client has send user id
         user_data = queues.find_one({'id': request.user_id})
         if user_data:
@@ -179,24 +184,16 @@ def setup():
         request.user_data = create_session()
         request.user_status = 'temporary_user'
 
-# Function before close the app
-@app.teardown_appcontext
-def exit():
-    global exit_process
-    exit_process = True
-    ### DEBUG PRINT ###
-    print('join cheker thread...')
-    cheker_thread.join()
-
 
 if __name__ == '__main__':
-    client = MongoClient('mongodb://localhost:27017/')
-    db = client['QueuesData']
-
-    queues = db['queues']
-    users = db['users']
-
     print('Сервер запущено')
 
-    app.run()
-    cheker_thread.start()
+    try:
+        cheker_thread.start()
+        app.run()
+    finally:
+        exit_process = True
+        ### DEBUG PRINT ###
+        print('join cheker thread...')
+        cheker_thread.join()
+        client.close()
