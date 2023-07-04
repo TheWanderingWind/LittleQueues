@@ -1,6 +1,6 @@
 ### Main includes ###
 from pymongo import MongoClient
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, g
 ### Main variable ###
 app = Flask(__name__)
 client = MongoClient('mongodb://localhost:27017/')
@@ -21,22 +21,21 @@ exit_process = False
 # Get session data
 def get_session(session_id):
     ### ALL PRINT HERE FOR DEBUG ###
-    print(f'Trying find session with id {session_id}...')
+    #print(f'Trying find session with id {session_id}...')
     lock.acquire()
     if session_id in sessions:
         ret_session = sessions[session_id]
-        print(f'Session found')
-        lock.acquire()
-        return ret_session
+        #print(f'Session found')
     else:
-        print(f'Session not found')
-        lock.acquire()
-        return None
+        ret_session = None
+        #print(f'Session not found')
+    lock.release()
+    return ret_session
 
 # Create session
 def create_session():
     ### ALL PRINT HERE FOR DEBUG ###
-    print('Create new session')
+    #print('Create new session')
     session_id = None
     while session_id is None:
         session_id = str(uuid4())
@@ -54,12 +53,12 @@ def create_session():
         'name': None,
     }
 
-    print('trying save session...')
+    #print('trying save session...')
     lock.acquire()
     sessions[session_id] = session
     lock.release()
 
-    print(f'Success create new sesion with id {session_id}')
+    #print(f'Success create new sesion with id {session_id}')
     return session
 
 # For cheking and removing sessions
@@ -68,29 +67,26 @@ def cheking_sessions():
     print('cheking_sessions setup')
 
     while True:
-        # delay
-        for i in range(2):
-            time.sleep(10)
+        # delay to check
+        for i in range(24):
+            time.sleep(5)
             if exit_process:
                 return
-        # total delay: 2*10 = 20 sec (0.(3) min)
-        # so little for debug
+        # total delay: 5*24 = 120 sec (2 min)
 
         now_time = datetime.now()
-        print('Cheking sessions...', end='\t')
 
         lock.acquire()
         for session in sessions:
             if sessions[session]['status'] == 'downtime':
-                if (now_time - sessions[session]['last_activ']) > timedelta(seconds=30):
+                if (now_time - sessions[session]['last_activ']) > timedelta(minutes=30):
                     closed_session = {
                         'id': session,
                         'status': 'deleted',
                     }
                     sessions[session] = closed_session
-                    print(f'\nsession with id {session} was closed')
+                    #print(f'\nsession with id {session} was closed')
         lock.release()
-        print('Cheked')
 
 
 cheker_thread = threading.Thread(target=cheking_sessions)
@@ -148,41 +144,53 @@ def get_queue_by_id(id):
 @app.route('/')
 def main_page():
     ### DEBUG PRINT ###
-    print(f'Request to main page. User status: {request.user_status}')
+    print(f'Request to main page. User status: {g.user_status}')
     output_data = {
         'message': 'Hello, word!',
-        'user_status': request.user_status,
-        'user_data': request.user_data
+        'user_status': g.user_status,
+        'user_data': g.user_data
     }
-    
+    if g.user_data['id'] != request.args['user_id']:
+        output_data['message'] = "You'r session was closed."
+
     return render_template('test.html.j2', data=output_data)
 
 
 # Here we will get user id
 @app.before_request
 def setup():
-    if  'session_id' in request.form:
+    if request.path == '/favicon.ico':
+        return
+    print('status', request.args['user_status'])
+    
+    if request.args['user_status'] == 'temporary_user':
         # if client has send session id
-        session = get_session(request.session_id)
-        if session:
-            request.user_data = session
-            request.user_status = 'permanent_user'
-    elif 'user_id' in request.form:
+        session = get_session(request.args['session_id'])
+        if session is not None:
+            session['last_activ'] = datetime.now()
+            g.user_data = session
+            g.user_status = 'temporary_user'
+        else:
+            # here will be handler when session was closed
+            print(f'ERROR: session by id {request.args["session_id"]} was closed. Creating new session.')
+            g.user_data = create_session()
+            g.user_status = 'temporary_user'
+    elif request.args['user_status'] == 'permanent_user':
         # if client has send user id
-        user_data = queues.find_one({'id': request.user_id})
-        if user_data:
-            request.user_data = user_data
-            request.user_status = 'permanent_user'
+        user_data = queues.find_one({'id': request.args['user_id']})
+        if user_data is not None:
+            g.user_data = user_data
+            g.user_status = 'permanent_user'
         else:
             # if we don't found user, we create new session
             ### DEBUG PRINT ###
-            print(f'ERROR: not found user data by id {request.user_id}. Creating new session.')
-            request.user_data = create_session()
-            request.user_status = 'temporary_user'
+            print(f'ERROR: not found user data by id {request.args["user_id"]}. Creating new session.')
+            g.user_data = create_session()
+            g.user_status = 'temporary_user'
     else:
         # if client has not send anything
-        request.user_data = create_session()
-        request.user_status = 'temporary_user'
+        g.user_data = create_session()
+        g.user_status = 'temporary_user'
 
 
 if __name__ == '__main__':
