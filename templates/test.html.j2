@@ -2,19 +2,29 @@
 <html>
 <head>
     <title>Test site</title>
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 </head>
 <body>
-    {% if data.message %}
-    <h1>Message: {{data.message}}</h1>
+    {% if data.user_name is none %}
+    <h2>Hello noname user!</h2>
     {% else %}
-    <h1>Hello world!</h1>
+    <h2>Hello {{data.user_name}}!</h2>
     {% endif %}
 
-    {% if data.user_status == 'temporary_user' or data.user_status == 'permanent_user' %}
-    <a href="/?user_id={{data.user_data.id}}&user_status={{data.user_status}}">Go to Other Page</a>
+    {% if data.user_status is none %}
+    <h3>Oh... You have unknow status...</h3>
+    <h4>Maybe something go wrong?</h4>
     {% else %}
-    <a href="/?user_id={{data.user_data.id}}&user_status=None">Go to Other Page</a>
+        {% if data.user_status == 'temporary' %}
+    <h3>You have temporary status.</h3>
+    <h4>If you will be no activ, your session will be closed.</h4>
+        {% else %}
+            {% if data.user_status == 'temporary' %}
+    <h3>You have permanent status.</h3>
+    <h4>We welcome you.</h4>
+            {% endif %}
+        {% endif %}
     {% endif %}
+
 </body>
 </html>

@@ -1,109 +1,115 @@
 ### Main includes ###
 from pymongo import MongoClient
-from flask import Flask, render_template, request, g
+from flask import Flask, render_template
+from flask import request, session
+from datetime import datetime, timedelta
+import threading, time
+from uuid import uuid4
+
 ### Main variable ###
 app = Flask(__name__)
+app.secret_key = 'example12345'
 client = MongoClient('mongodb://localhost:27017/')
 db = client['QueuesData']
-queues = db['queues']
-users = db['users']
 
-### Includes for sessions ###
-from uuid import uuid4 
-from datetime import datetime, timedelta
-import threading
-import time
-### Variable for sessions ###
+# links to session objects 
 sessions = {}
-lock = threading.Lock()
-exit_process = False
+session_loker = threading.Lock()
 
-# Get session data
-def get_session(session_id):
-    ### ALL PRINT HERE FOR DEBUG ###
-    #print(f'Trying find session with id {session_id}...')
-    lock.acquire()
-    if session_id in sessions:
-        ret_session = sessions[session_id]
-        #print(f'Session found')
-    else:
-        ret_session = None
-        #print(f'Session not found')
-    lock.release()
-    return ret_session
+queues = db['queues']
+# perview queue data (and links to database)
+queues_preview = {}
 
-# Create session
-def create_session():
-    ### ALL PRINT HERE FOR DEBUG ###
-    #print('Create new session')
-    session_id = None
-    while session_id is None:
-        session_id = str(uuid4())
-        #print(f'Sessions: {sessions}')
+users = db['users']
+# perview queue data (and links to database)
+users_preview = {}
 
-        if session_id in sessions.keys():
-            if sessions[session_id]['status'] != 'deleted':
-                session_id = None
-                break
-        
-    session = {
-        'id': session_id, 
-        'status': "downtime",
-        'last_activ': datetime.now(),
-        'name': None,
-    }
+def new_temporary_session():
+    ''' create new temporary session '''
+    print(F'DEBUG: session data: {session}')
+    if 'id' not in session:
+        new_id = None
+        while new_id is None:
+            new_id = uuid4()
+            if new_id in sessions.keys():
+                new_id = None
+ 
+    session_loker.acquire()
 
-    #print('trying save session...')
-    lock.acquire()
-    sessions[session_id] = session
-    lock.release()
+    # add new session-obj to general list 
+    if 'id' in session:
+        sessions[new_id] = session
 
-    #print(f'Success create new sesion with id {session_id}')
-    return session
+    session['id'] = new_id
+    session['user_status'] = 'temporary'
+    session['status'] = 'downtime'
+    session['last_activ'] = datetime.now()
+    session['user_name'] = None
+    session['in_queues'] = [],
+    session['settings'] = {}
 
-# For cheking and removing sessions
-def cheking_sessions():
-    ### ALL PRINT HERE FOR DEBUG ###
-    print('cheking_sessions setup')
+    session_loker.release()
+
+def new_permanent_session():
+    ''' create new permanent session (session for permanent user)
+     not done yet '''
+    pass
+
+def clean_session(id):
+    ''' clear data in session '''
+    session_loker.acquire()
+    session_item = sessions[id]
+
+    session_item['status'] = "close"
+    session_item['last_activ'] = None
+    session_item['user_name'] = None
+    session_item['in_queues'] = None
+    session_item['settings'] = None
+
+    if session_item['user_status'] == 'temporary':
+        # delete data that only for temporary user
+        pass
+    elif session_item['user_status'] == 'permanent':
+        # delete data that only for peermanent user
+        #session_item['database_id'] = None
+        #session_item['host_queues'] = None
+        pass
+    
+    session_item['user_status'] = None
+    session_loker.release()
+
+exit_session_cheker = False
+def session_cheker():
+    ''' Function for tread for cheking idle time sessions   '''
+    print('Start session_cheker')
 
     while True:
-        # delay to check
-        for i in range(24):
-            time.sleep(5)
-            if exit_process:
+        # Delay to check
+        for i in range(10):
+            time.sleep(5) # little but many delays for fast close tread
+            if exit_session_cheker == True:
                 return
-        # total delay: 5*24 = 120 sec (2 min)
+        # total delay: 10*5 = 50 sec
 
-        now_time = datetime.now()
+        session_loker.acquire()
+        time_now = datetime.now()
+        for id in sessions:
+            if sessions[id]['status'] == 'closed':
+                continue
+            
+            delta = time_now - session[id]['last_activ']
 
-        lock.acquire()
-        for session in sessions:
-            if sessions[session]['status'] == 'downtime':
-                if (now_time - sessions[session]['last_activ']) > timedelta(minutes=30):
-                    closed_session = {
-                        'id': session,
-                        'status': 'deleted',
-                    }
-                    sessions[session] = closed_session
-                    #print(f'\nsession with id {session} was closed')
-        lock.release()
+            if session[id]['status'] == 'downtime':
+                if session[id]['user_status'] == 'temporary' and delta > timedelta(hours=2):
+                    clean_session(id)
+                elif session[id]['user_status'] == 'permanent' and delta > timedelta(days=2):
+                    clean_session(id)
 
+        session_loker.release()
+session_cheker_tread = threading.Thread(target=session_cheker)
 
-cheker_thread = threading.Thread(target=cheking_sessions)
-
-# Add new user
-def add_user(name, cookies=[]):
-    new_user = {
-        'name': name,
-        'cookies': cookies,
-    }
-    result = users.insert_one(new_user)
-    new_user['id'] = result.inserted_id
-    return new_user
-
-
-# Add new queue
-def add_queue(name, hostId, description):
+def add_queue(name, hostId, description, status='active'):
+    ''' Create new queue to database '''
     collection_queues = queues.find()
     new_queue = {
         'id': len(collection_queues),
@@ -113,95 +119,113 @@ def add_queue(name, hostId, description):
         'queue': [],
         'finishedQueue': [],
         'currentParticipantId': None,
-        'status': 'active'
+        'status': status
     }
-    queues.insert_one(new_queue)
+    result = queues.insert_one(new_queue)
+    queues_preview[new_queue['id']] = {
+        '_id': result.inserted_id,
+        'name': name,
+        'description': description,
+        'status': status
+        }
+    return queues_preview[new_queue['id']]
 
+def get_queue(id):
+    ''' Get queue data '''
+    if id not in queues_preview:
+        print('Not found')
+        return None
+    else:
+        return queues.find_one({'_id': queues_preview[id]})
 
-# Get user data by id
-def get_user_by_id(id):
-    collection_user = users.find()
-    user_data = None
-    for item in collection_user:
-        if item['id'] == id:
-            user_data = item
-            break
-    return user_data
+def add_user(name, login, password, settings={}):
+    ''' Create new user to database '''
+    new_user = {
+        'user_name': name,
+        'login': login,
+        'password': password,
+        'settings': settings,
+        'host_queues': [],
+        'activ_sessions': [session['session']]
+    }
+    result = users.insert_one(new_user)
+    
+    users_preview[result.inserted_id] = {
+        'user_name': name,
+        'settings': settings,
+        'host_queues': [],
+    }
 
+    return users_preview[result.inserted_id]
 
-# Get queue data by id
-def get_queue_by_id(id):
-    collection_queues = queues.find()
-    queue_data = None
-    for item in collection_queues:
-        if item['id'] == id:
-            queue_data = item
-            break
-    return queue_data
+def get_user(id):
+    ''' Get user data '''
+    if id not in users_preview:
+        print('Not found')
+        return None
+    else:
+        return queues.find_one({'_id': id})
 
-
-# Main site
+# Main page
 @app.route('/')
 def main_page():
-    ### DEBUG PRINT ###
-    print(f'Request to main page. User status: {g.user_status}')
-    output_data = {
-        'message': 'Hello, word!',
-        'user_status': g.user_status,
-        'user_data': g.user_data
+    ### ALL PRINTS FOR DEBUG ###
+    print('main request')
+
+    out_data = {
+        'id': session['id'],
+        'user_status': session['user_status'],
+        'user_name': session['user_name'],
+        'in_queues': session['in_queues'],
+        'settings': session['settings'],
     }
-    if g.user_data['id'] != request.args['user_id']:
-        output_data['message'] = "You'r session was closed."
 
-    return render_template('test.html.j2', data=output_data)
+    return render_template('test.html.j2', data=out_data)
 
-
-# Here we will get user id
+# Handler before 
 @app.before_request
 def setup():
-    if request.path == '/favicon.ico':
-        return
-    print('status', request.args['user_status'])
-    
-    if request.args['user_status'] == 'temporary_user':
-        # if client has send session id
-        session = get_session(request.args['session_id'])
-        if session is not None:
+    ### ALL PRINTS FOR DEBUG ###
+    print('BG: before request (BG)')
+
+    if request.path != '/favicon.ico':
+        # request not for get favicon.ico
+
+        if not ('status' in session):
+            # if session is new
+            print('BG: it\'s new session')
+            new_temporary_session()
+
+        elif session['status'] == 'closed':
+            # if session was closed
+            print('BG: it\'s closed session')
+            new_temporary_session()
+
+        elif 'user_status' in session.keys() and session['user_status'] == 'temporary':
+            # if it's temporary user
+            print('BG: it\'s temporary session')
             session['last_activ'] = datetime.now()
-            g.user_data = session
-            g.user_status = 'temporary_user'
+        
+        elif 'user_status' in session.keys() and session['user_status'] == 'permanent':
+            # if it's permanent user
+            print('BG: it\'s permanent session')
+            session['last_activ'] = datetime.now()
+        
         else:
-            # here will be handler when session was closed
-            print(f'ERROR: session by id {request.args["session_id"]} was closed. Creating new session.')
-            g.user_data = create_session()
-            g.user_status = 'temporary_user'
-    elif request.args['user_status'] == 'permanent_user':
-        # if client has send user id
-        user_data = queues.find_one({'id': request.args['user_id']})
-        if user_data is not None:
-            g.user_data = user_data
-            g.user_status = 'permanent_user'
-        else:
-            # if we don't found user, we create new session
-            ### DEBUG PRINT ###
-            print(f'ERROR: not found user data by id {request.args["user_id"]}. Creating new session.')
-            g.user_data = create_session()
-            g.user_status = 'temporary_user'
-    else:
-        # if client has not send anything
-        g.user_data = create_session()
-        g.user_status = 'temporary_user'
+            print('BG: unknow session data')
+            new_temporary_session()
 
 
 if __name__ == '__main__':
-    print('Сервер запущено')
-
     try:
-        cheker_thread.start()
+        ### DEBUG PRINTS ###
+        session_cheker_tread.start()
+        print('start app')
         app.run()
     finally:
-        exit_process = True
-        ### DEBUG PRINT ###
-        print('join cheker thread...')
-        cheker_thread.join()
+        ### DEBUG PRINTS ###
+        print('closed app')
+        exit_session_cheker = True
+        print('closing session_cheker_tread...')
+        session_cheker_tread.join()
         client.close()
