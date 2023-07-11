@@ -1,6 +1,6 @@
 ### Main includes ###
 from pymongo import MongoClient
-from flask import Flask, render_template
+from flask import Flask, render_template, jsonify
 from flask import request, session
 from datetime import datetime, timedelta
 import threading, time
@@ -46,7 +46,10 @@ def new_temporary_session():
     session['last_activ'] = datetime.now()
     session['user_name'] = None
     session['in_queues'] = [],
-    session['settings'] = {}
+    session['settings'] = {
+        'page': 1,
+        'per_page': 10
+    }
 
     session_loker.release()
 
@@ -181,6 +184,35 @@ def main_page():
     }
 
     return render_template('test.html.j2', data=out_data)
+
+@app.route('/queue', methods=['GET'])
+def get_queues():
+
+    # getting (if it have) settings and save in session
+    page = int(request.args.get('page', 0))
+    if page != 0:
+        session['settings']['page'] = page
+    per_page = int(request.args.get('per_page', 0))
+    if page != 0:
+        session['settings']['per_page'] = per_page
+
+    # Sorting queues with status 'activ'
+    active_queues = sorted(filter(lambda q: q['status'] == 'activ', users_preview.values()), key=lambda q: q['id'])
+
+    # Calculate start and end index
+    start_index = (session['settiongs']['page'] - 1) * session['settiongs']['per_page']
+    end_index = start_index + session['settiongs']['per_page']
+
+    # make list queues without _id in database
+    paged_queues = []
+    for item in active_queues[start_index:end_index]:
+        paged_queues.append({
+            'name': item['name'],
+            'description': item['description'],
+            'status': item['status'],
+        })
+
+    return jsonify(paged_queues)
 
 # Handler before 
 @app.before_request
