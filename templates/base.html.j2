@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{% block title %}{% endblock %}</title>
+    {% block styles %}{% endblock %}
+    <style>
+        /* General options for list element */
+        .li {
+        display: flex;
+        flex-direction: column;
+        border-radius: 5px;
+        min-width: 300px;
+        margin-bottom: 7px;
+        }
+        /* Fist variation list element */
+        .li-0 {
+        background-color: #C8E6C9;
+        }
+        /* Second variation list element */
+        .li-1 {
+        background-color: #a5dfa7;
+        }
+
+        .list-block {
+            display: inline-block;
+            right: 5%;
+            background-color: #7ad3d6;
+        }
+
+        .content-block {
+            display: inline-block;
+            left: 5%;
+            background-color: #7aa5d6;
+        }
+
+        .header {
+            display: block;
+            padding: 10%;
+            background-color: #d2d87b;
+        }
+
+        .main {
+            display: block;
+            padding: 20%;
+            background-color: #e3e6b6;
+        }
+
+        .footer {
+            display: block;
+            background-color: #a1a380;
+        }
+
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div>
+            {% block page_title_content %}{% endblock %}
+
+            <div style="top: 5%;">
+                {% if data.user_name %}
+                <h3>Вітаємо вас, {{data.user_name}}!</h3>
+                {% else %}
+                <h3>Вітаємо вас!</h3>
+                <h5>Ви зайшли як незареєстрований учасник. Вашу поточну сесію закриють, при тривалій неактивності.</h5>
+                {% endif %}
+                <!-- Here in future will be Sing on/Log in -->
+            </div>
+        </div>
+        <!-- this for future change language
+        <form action="/change_language" method="POST">
+            <select name="country">
+                <option value="Test_result">Test element, no effect</option>
+            </select>
+            <input type="submit" value="Submit">
+        </form>
+        -->
+
+        {% block navigation %}{% endblock %}
+    </header>
+
+    <main class="main">
+        {% if include_my_list %}
+        <div class="list-block">
+            <h2>{% block list_title %}{% endblock list_title %}</h2>
+            <ul>
+                {% for item in list %}
+                    {% block list_element %}{% endblock %}
+                {% else %}
+                    {% if list_null_massage %}
+                <h3>{{list_null_massage}}</h3>
+                    {% else %}
+                <h3>На разі в списку нічого нема</h3>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </div>
+        
+        <div class="content-block">
+        {% block content %}{% endblock %}
+        <div>
+        
+        {% else %}
+        {% block content %}{% endblock %}
+        {% endif %}
+    </main>
+
+    <footer class="footer">
+        <p>© 2023 Wind's website. Created for educational purposes.</p>
+        <p>© 2023 Wind's сайт. Створено для навчальних цілей.</p>
+    </footer>
+
+    <script>
+        // in future here will be request for change language
+    </script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -183,7 +183,7 @@ def main_page():
         'settings': session['settings'],
     }
 
-    return render_template('test.html.j2', data=out_data)
+    return render_template('main_page.html.j2', data=out_data)
 
 @app.route('/queue', methods=['GET'])
 def get_queues():
