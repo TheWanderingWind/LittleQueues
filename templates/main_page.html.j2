@@ -2,9 +2,82 @@
 
 {% block title %}Головна сторінка{% endblock %}
 
+{% block styles %}
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+{% endblock %}
+
 {% block page_title_content %}
 <h2> Вітаємо вас на головній сторінці! </h2>
 {% endblock %}
 
+
+<!-- in future here will be blok with show navigation for user --> 
+{% block content %}{% endblock %}
+
+
 {% block list_title %}Список існуючих черг:{% endblock list_title %}
-{% list_null_massage = 'На зараз, ніяких черг немає.' %}
+{% set include_my_list = true %}
+{% block scripts %}
+<script>
+    async function update_queues_list() {
+        console.log('Update');
+        let list_data;  
+        await $.ajax({
+            url: '/queue',
+            method: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                list_data = response
+            },
+            error: function(xhr, status, error) {
+                console.log(error);
+            }
+        });
+
+        if (list_data.length == 0) { return }
+
+        const list_obj = document.getElementById('list-object');
+        list_obj.innerHTML = '';
+
+        for (let i = 0; i < list_data.length; i++) {
+            let list_element = document.createElement('li');
+            list_element.classList.add('li');
+            list_element.classList.add(i % 2 == 0 ? 'li-0' : 'li-1');
+            //console.log(`${i}: li-${}`)
+            list_element.style.display = 'block';
+
+            let lis_el_title = document.createElement('h3');
+            lis_el_title.textContent = list_data[i]['name'];
+            lis_el_title.style.display = 'inline-block';
+            lis_el_title.addEventListener('click', function () {
+                  //toggleDetails(list_element);
+                  // write this later
+                });
+
+            let list_el_detal = document.createElement('p');
+            list_el_detal.style.display = 'block';
+            list_el_detal.textContent = list_data[i]['description'];
+
+            let list_el_link = document.createElement('a');
+            list_el_link.textContent = 'Приєднатися до черги';
+            list_el_detal.style.display = 'block';
+            list_el_link.href = '#'
+            list_el_link.dataset.queueId = list_data[i]['id'];
+            list_el_link.addEventListener('click', function () {
+                  //joinQueue(listItem);
+                });
+
+            list_obj.appendChild(list_element);
+            list_element.appendChild(lis_el_title);
+            list_element.appendChild(list_el_detal);
+            list_element.appendChild(list_el_link);
+        }
+    }
+
+    function toggleDetails(list_element) {
+
+    }
+
+    update_queues_list()
+</script>
+{% endblock %}

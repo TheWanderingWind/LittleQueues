@@ -6,58 +6,66 @@
     <style>
         /* General options for list element */
         .li {
-        display: flex;
-        flex-direction: column;
-        border-radius: 5px;
-        min-width: 300px;
-        margin-bottom: 7px;
+            display: flex;
+            flex-direction: column;
+            border-radius: 5px;
+            min-width: 300px;
+            margin-bottom: 7px; 
+            padding: 2%;
         }
         /* Fist variation list element */
         .li-0 {
-        background-color: #C8E6C9;
+            background-color: #C8E6C9;
         }
         /* Second variation list element */
         .li-1 {
-        background-color: #a5dfa7;
+            background-color: #a5dfa7;
         }
 
         .list-block {
             display: inline-block;
             right: 5%;
-            background-color: #7ad3d6;
+            background-color: #bfd5d6;
+            border-radius: 5px;
+            padding: 2%;
         }
 
         .content-block {
             display: inline-block;
             left: 5%;
-            background-color: #7aa5d6;
+            background-color: #b8c3cf;
         }
 
         .header {
-            display: block;
-            padding: 10%;
-            background-color: #d2d87b;
+            display: flex;
+            width 100%;
+            padding: 5%;
+            background-color: #d6daa2;
         }
 
         .main {
             display: block;
-            padding: 20%;
-            background-color: #e3e6b6;
+            width 100%;
+            padding: 5%;
+            background-color: #dcddcc;
         }
 
         .footer {
             display: block;
-            background-color: #a1a380;
+            width: 100%;
+            background-color: #999995;
+            padding: 2%;
+            box-sizing: border-box;
         }
-
+    
     </style>
 </head>
-<body>
+<body style="padding: 0; margin: 0;">
     <header class="header">
         <div>
             {% block page_title_content %}{% endblock %}
 
-            <div style="top: 5%;">
+            <div style="">
                 {% if data.user_name %}
                 <h3>Вітаємо вас, {{data.user_name}}!</h3>
                 {% else %}
@@ -83,26 +91,15 @@
         {% if include_my_list %}
         <div class="list-block">
             <h2>{% block list_title %}{% endblock list_title %}</h2>
-            <ul>
-                {% for item in list %}
-                    {% block list_element %}{% endblock %}
-                {% else %}
-                    {% if list_null_massage %}
-                <h3>{{list_null_massage}}</h3>
-                    {% else %}
-                <h3>На разі в списку нічого нема</h3>
-                    {% endif %}
-                {% endfor %}
+            <ul id="list-object">
+                <!-- here element must be created by scripts -->
             </ul>
         </div>
+        {% endif %}
         
         <div class="content-block">
-        {% block content %}{% endblock %}
+            {% block content %}{% endblock %}
         <div>
-        
-        {% else %}
-        {% block content %}{% endblock %}
-        {% endif %}
     </main>
 
     <footer class="footer">

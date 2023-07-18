@@ -8,7 +8,7 @@ from uuid import uuid4
 
 ### Main variable ###
 app = Flask(__name__)
-app.secret_key = 'example12345'
+app.secret_key = 'secretBuild1'
 client = MongoClient('mongodb://localhost:27017/')
 db = client['QueuesData']
 
@@ -113,7 +113,7 @@ session_cheker_tread = threading.Thread(target=session_cheker)
 
 def add_queue(name, hostId, description, status='active'):
     ''' Create new queue to database '''
-    collection_queues = queues.find()
+    collection_queues = list(queues.find())
     new_queue = {
         'id': len(collection_queues),
         'name': name,
@@ -127,6 +127,7 @@ def add_queue(name, hostId, description, status='active'):
     result = queues.insert_one(new_queue)
     queues_preview[new_queue['id']] = {
         '_id': result.inserted_id,
+        'id': new_queue['id'],
         'name': name,
         'description': description,
         'status': status
@@ -173,7 +174,7 @@ def get_user(id):
 @app.route('/')
 def main_page():
     ### ALL PRINTS FOR DEBUG ###
-    print('main request')
+    #print('main request')
 
     out_data = {
         'id': session['id'],
@@ -197,11 +198,11 @@ def get_queues():
         session['settings']['per_page'] = per_page
 
     # Sorting queues with status 'activ'
-    active_queues = sorted(filter(lambda q: q['status'] == 'activ', users_preview.values()), key=lambda q: q['id'])
+    active_queues = list(filter(lambda q: q['status'] == 'activ', queues_preview.values()))
 
     # Calculate start and end index
-    start_index = (session['settiongs']['page'] - 1) * session['settiongs']['per_page']
-    end_index = start_index + session['settiongs']['per_page']
+    start_index = (session['settings']['page'] - 1) * session['settings']['per_page']
+    end_index = start_index + session['settings']['per_page']
 
     # make list queues without _id in database
     paged_queues = []
@@ -210,6 +211,7 @@ def get_queues():
             'name': item['name'],
             'description': item['description'],
             'status': item['status'],
+            'id': item['id']
         })
 
     return jsonify(paged_queues)
@@ -218,29 +220,29 @@ def get_queues():
 @app.before_request
 def setup():
     ### ALL PRINTS FOR DEBUG ###
-    print('BG: before request (BG)')
+    #print('BG: before request (BG)')
 
     if request.path != '/favicon.ico':
         # request not for get favicon.ico
 
         if not ('status' in session):
             # if session is new
-            print('BG: it\'s new session')
+            #print('BG: it\'s new session')
             new_temporary_session()
 
         elif session['status'] == 'closed':
             # if session was closed
-            print('BG: it\'s closed session')
+            #print('BG: it\'s closed session')
             new_temporary_session()
 
         elif 'user_status' in session.keys() and session['user_status'] == 'temporary':
             # if it's temporary user
-            print('BG: it\'s temporary session')
+            #print('BG: it\'s temporary session')
             session['last_activ'] = datetime.now()
         
         elif 'user_status' in session.keys() and session['user_status'] == 'permanent':
             # if it's permanent user
-            print('BG: it\'s permanent session')
+            #print('BG: it\'s permanent session')
             session['last_activ'] = datetime.now()
         
         else:
@@ -248,9 +250,27 @@ def setup():
             new_temporary_session()
 
 
+def setUp():
+    # read queues in database
+    queue_array = list(queues.find())
+    for item in queue_array:
+        queues_preview[item['id']] = {
+            '_id': item['_id'],
+            'id': item['id'],
+            'name': item['name'],
+            'description': item['description'],
+            'status': item['status']
+        }
+
 if __name__ == '__main__':
     try:
         ### DEBUG PRINTS ###
+        #add_queue('Test Queue 1', 0, 'None', 'activ')
+        #add_queue('Test Queue 2', 0, 'None', 'activ')
+        #add_queue('Test Queue 3', 0, 'None', 'activ')
+
+        setUp()
+
         session_cheker_tread.start()
         print('start app')
         app.run()
