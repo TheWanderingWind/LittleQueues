@@ -1,17 +1,32 @@
 <!DOCTYPE html>
-<html>
+<html style="height: 100%; background-color: #dcddcc;">
 <head>
     <title>{% block title %}{% endblock %}</title>
     {% block styles %}{% endblock %}
     <style>
+        body {
+            height: 100%;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            background-color: #dcddcc;
+        }
+
+        p {
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+        }
+
         /* General options for list element */
         .li {
-            display: flex;
             flex-direction: column;
             border-radius: 5px;
             min-width: 300px;
             margin-bottom: 7px; 
             padding: 2%;
+            position: relative;
         }
         /* Fist variation list element */
         .li-0 {
@@ -46,7 +61,6 @@
         .main {
             display: block;
             padding: 5%;
-            background-color: #dcddcc;
         }
 
         .footer {
@@ -64,7 +78,7 @@
         }
     </style>
 </head>
-<body style="padding: 0; margin: 0;">
+<body>
     <header class="header">
         <div>
             {% block pageTitleContent %}{% endblock %}
