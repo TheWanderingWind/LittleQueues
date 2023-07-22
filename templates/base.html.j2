@@ -25,6 +25,7 @@
         .list-block {
             display: inline-block;
             right: 5%;
+            min-width: 50%;
             background-color: #bfd5d6;
             border-radius: 5px;
             padding: 2%;
@@ -38,35 +39,38 @@
 
         .header {
             display: flex;
-            width 100%;
             padding: 5%;
             background-color: #d6daa2;
         }
 
         .main {
             display: block;
-            width 100%;
             padding: 5%;
             background-color: #dcddcc;
         }
 
         .footer {
             display: block;
-            width: 100%;
             background-color: #999995;
             padding: 2%;
             box-sizing: border-box;
         }
-    
+
+        .page-button{
+            min-width: 15px;
+            padding: 4px;
+            max-height: 30px;
+            margin: 1px;
+        }
     </style>
 </head>
 <body style="padding: 0; margin: 0;">
     <header class="header">
         <div>
-            {% block page_title_content %}{% endblock %}
+            {% block pageTitleContent %}{% endblock %}
 
             <div style="">
-                {% if data.user_name %}
+                {% if data.userName %}
                 <h3>Вітаємо вас, {{data.user_name}}!</h3>
                 {% else %}
                 <h3>Вітаємо вас!</h3>
@@ -88,9 +92,23 @@
     </header>
 
     <main class="main">
-        {% if include_my_list %}
+        {% if includeMyList %}
         <div class="list-block">
-            <h2>{% block list_title %}{% endblock list_title %}</h2>
+            <h2>{% block listTitle %}{% endblock %}</h2>
+            <div id="pagination-container" style="display: flex; padding: 2%;">
+                <div class="permanent-object">
+                    <p style="margin: 2%;">Кількість елементів на сторінку:</p>
+                    <select id="page-size-select">
+                        <option value="10">10</option>
+                        <option value="20">20</option>
+                        <option value="30">30</option>
+                        <option value="40">40</option>
+                        <option value="50">50</option>
+                    </select>
+                </div>
+                <button id="before-page" class="permanent-object page-button"><<</button>
+                <button id="next-page" class="permanent-object page-button">>></button>
+            </div>
             <ul id="list-object">
                 <!-- here element must be created by scripts -->
             </ul>
@@ -109,6 +127,41 @@
 
     <script>
         // in future here will be request for change language
+
+        {% if includeMyList %}
+        var handlePageButtonClick;
+        var totalItems = 0;
+
+        function createPaginationButtons(event=NaN) {
+            const selector = document.getElementById('page-size-select');
+            var totalPages = Math.ceil(totalItems / selector.value);
+            var container = document.getElementById('pagination-container');
+            
+            // clear all buttons
+            var buttons = document.getElementsByClassName('page-button');            
+            for (var i = buttons.length - 1; i >= 0; i--) {
+                var butt = buttons[i];
+                // delete all but the permanent ones 
+                if (!butt.classList.contains('permanent-object')) {
+                    container.removeChild(butt);
+                }
+            }
+
+            nextButton = document.getElementById("next-page");
+            for (var page = 1; page <= totalPages; page++) {
+                var button = document.createElement('button');
+                button.textContent = page;
+                button.classList.add('page-button');
+                button.dataset.page = page;
+                button.addEventListener('click', handlePageButtonClick);
+                container.insertBefore(button, nextButton);
+            }
+        }
+
+        document.getElementById('page-size-select').addEventListener('change', createPaginationButtons)
+        {% endif %}
+
+
     </script>
     {% block scripts %}{% endblock %}
 </body>

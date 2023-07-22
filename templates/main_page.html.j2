@@ -6,7 +6,7 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 {% endblock %}
 
-{% block page_title_content %}
+{% block pageTitleContent %}
 <h2> Вітаємо вас на головній сторінці! </h2>
 {% endblock %}
 
@@ -15,69 +15,84 @@
 {% block content %}{% endblock %}
 
 
-{% block list_title %}Список існуючих черг:{% endblock list_title %}
-{% set include_my_list = true %}
+{% block listTitle %}Список існуючих черг:{% endblock %}
+{% set includeMyList = true %}
 {% block scripts %}
 <script>
-    async function update_queues_list() {
-        console.log('Update');
-        let list_data;  
+    let pageNum = 1
+
+    
+    async function updateQueuesList() {
+        let listData;  
+        const selector = document.getElementById('page-size-select');
+
         await $.ajax({
             url: '/queue',
             method: 'GET',
+            data: {
+               page: pageNum,
+               per_page: selector.value, 
+            },
             dataType: 'json',
             success: function(response) {
-                list_data = response
+                listData = response.data;
+                totalItems = response.queue_len;
             },
             error: function(xhr, status, error) {
                 console.log(error);
             }
-        });
+        })
 
-        if (list_data.length == 0) { return }
+        if (totalItems == 0) { return }
 
-        const list_obj = document.getElementById('list-object');
-        list_obj.innerHTML = '';
+        const listObj = document.getElementById('list-object');
+        listObj.innerHTML = '';
 
-        for (let i = 0; i < list_data.length; i++) {
-            let list_element = document.createElement('li');
-            list_element.classList.add('li');
-            list_element.classList.add(i % 2 == 0 ? 'li-0' : 'li-1');
-            //console.log(`${i}: li-${}`)
-            list_element.style.display = 'block';
+        for (let i = 0; i < listData.length; i++) {
+            let listElement = document.createElement('li');
+            listElement.classList.add('li');
+            listElement.classList.add(i % 2 == 0 ? 'li-0' : 'li-1');
+            listElement.style.display = 'block';
 
-            let lis_el_title = document.createElement('h3');
-            lis_el_title.textContent = list_data[i]['name'];
-            lis_el_title.style.display = 'inline-block';
-            lis_el_title.addEventListener('click', function () {
-                  //toggleDetails(list_element);
-                  // write this later
+            let listElemTitle = document.createElement('h3');
+            listElemTitle.textContent = listData[i]['name'];
+            listElemTitle.style.display = 'inline-block';
+            listElemTitle.addEventListener('click', function () {
+                    //toggleDetails(listElement);
+                    // write this later
                 });
 
-            let list_el_detal = document.createElement('p');
-            list_el_detal.style.display = 'block';
-            list_el_detal.textContent = list_data[i]['description'];
+            let listElemDetal = document.createElement('p');
+            listElemDetal.style.display = 'block';
+            listElemDetal.textContent = listData[i]['description'];
 
-            let list_el_link = document.createElement('a');
-            list_el_link.textContent = 'Приєднатися до черги';
-            list_el_detal.style.display = 'block';
-            list_el_link.href = '#'
-            list_el_link.dataset.queueId = list_data[i]['id'];
-            list_el_link.addEventListener('click', function () {
-                  //joinQueue(listItem);
+            let listElemLink = document.createElement('a');
+            listElemLink.textContent = 'Приєднатися до черги';
+            listElemLink.style.display = 'block';
+            listElemLink.href = '#'
+            listElemLink.dataset.queueId = listData[i]['id'];
+            listElemLink.addEventListener('click', function () {
+                    //joinQueue(listItem);
                 });
 
-            list_obj.appendChild(list_element);
-            list_element.appendChild(lis_el_title);
-            list_element.appendChild(list_el_detal);
-            list_element.appendChild(list_el_link);
+            listObj.appendChild(listElement);
+            listElement.appendChild(listElemTitle);
+            listElement.appendChild(listElemDetal);
+            listElement.appendChild(listElemLink);
         }
+
+        createPaginationButtons()
     }
 
-    function toggleDetails(list_element) {
+    handlePageButtonClick = function (event) {
+        pageNum = event.target.dataset.page;
+        updateQueuesList();
+    }
+
+    function toggleDetails(listElement) {
 
     }
 
-    update_queues_list()
+    updateQueuesList()
 </script>
 {% endblock %}

@@ -214,7 +214,7 @@ def get_queues():
             'id': item['id']
         })
 
-    return jsonify(paged_queues)
+    return jsonify({'data': paged_queues, 'queue_len': len(queues_preview)})
 
 # Handler before 
 @app.before_request
@@ -265,11 +265,10 @@ def setUp():
 if __name__ == '__main__':
     try:
         ### DEBUG PRINTS ###
-        #add_queue('Test Queue 1', 0, 'None', 'activ')
-        #add_queue('Test Queue 2', 0, 'None', 'activ')
-        #add_queue('Test Queue 3', 0, 'None', 'activ')
-
         setUp()
+
+        #for i in range(20):
+        #    add_queue(f'Test Queue #{i+20}', 0, 'None', 'activ')
 
         session_cheker_tread.start()
         print('start app')
