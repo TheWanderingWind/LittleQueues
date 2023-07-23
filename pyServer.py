@@ -45,7 +45,7 @@ def new_temporary_session():
     session['status'] = 'downtime'
     session['last_activ'] = datetime.now()
     session['user_name'] = None
-    session['in_queues'] = [],
+    session['in_queues'] = {},
     session['settings'] = {
         'page': 1,
         'per_page': 10
@@ -81,9 +81,10 @@ def clean_session(id):
     session_item['user_status'] = None
     session_loker.release()
 
+# Boolean for closing thread
 exit_session_cheker = False
 def session_cheker():
-    ''' Function for tread for cheking idle time sessions   '''
+    ''' Function for tread for cheking idle time sessions '''
     print('Start session_cheker')
 
     while True:
@@ -128,6 +129,7 @@ def add_queue(name, hostId, description, status='active'):
     queues_preview[new_queue['id']] = {
         '_id': result.inserted_id,
         'id': new_queue['id'],
+        'hostId': hostId,
         'name': name,
         'description': description,
         'status': status
@@ -142,6 +144,34 @@ def get_queue(id):
     else:
         return queues.find_one({'_id': queues_preview[id]})
 
+def limit_data_queue(id, status='temp_user'):
+    ''' Limit queue data for diferent users status '''
+    queue = get_queue(id)
+    if not queue:
+        return None
+
+    # Standart data for everyone
+    limited_queue = {
+        'name': queue['name'],
+        'description': queue['description'],
+        'status': queue['status'],
+        'id': queue['id']
+    }
+    # additional data for permanent
+    if status == 'perm_user':
+        limited_queue['hostName'] = users_preview[queue['hostId']]['user_name']
+    # data for host
+    elif status == 'host':
+        limited_queue['hostName'] = users_preview[queue['hostId']]['user_name']
+        limited_queue['queue'] = queue['queue']
+        limited_queue['finishedQueue'] = queue['finishedQueue']
+        limited_queue['currentParticipantId'] = queue['currentParticipantId']
+    # fully data for admins
+    elif status == 'admin':
+        pass
+
+    return limited_queue
+
 def add_user(name, login, password, settings={}):
     ''' Create new user to database '''
     new_user = {
@@ -150,6 +180,7 @@ def add_user(name, login, password, settings={}):
         'password': password,
         'settings': settings,
         'host_queues': [],
+        'in_queues': [],
         'activ_sessions': [session['session']]
     }
     result = users.insert_one(new_user)
@@ -158,6 +189,7 @@ def add_user(name, login, password, settings={}):
         'user_name': name,
         'settings': settings,
         'host_queues': [],
+        'in_queues': [],
     }
 
     return users_preview[result.inserted_id]
@@ -186,9 +218,9 @@ def main_page():
 
     return render_template('main_page.html.j2', data=out_data)
 
+# Get list of queues
 @app.route('/queue', methods=['GET'])
 def get_queues():
-
     # getting (if it have) settings and save in session
     page = int(request.args.get('page', 0))
     if page != 0:
@@ -207,14 +239,78 @@ def get_queues():
     # make list queues without _id in database
     paged_queues = []
     for item in active_queues[start_index:end_index]:
-        paged_queues.append({
-            'name': item['name'],
-            'description': item['description'],
-            'status': item['status'],
-            'id': item['id']
-        })
+        paged_queues.append(limit_data_queue(item['id']))
 
     return jsonify({'data': paged_queues, 'queue_len': len(queues_preview)})
+
+# Joing to queue
+@app.route('/queue/<int:queue_id>/join', methods=['GET'])
+def queue_join(queue_id):
+    queue = None
+    data = {
+        'message': ''
+    }
+
+    if queue_id in queues_preview.keys():
+        queue = queues_preview[queue_id]
+    else:
+        data['message'] = 'Не знайдено черги з таким id.\nМожливо її вже закрили?'
+        return render_template('404_page.html.j2', data=data), 404
+    
+    is_host = session['id'] == queue['hostId']
+    is_perm = session['user_status'] == 'permanent'
+    is_in_queue = False
+    for q in session['in_queues']:
+        if q['id'] == queue_id:
+            is_in_queue = True
+            break
+
+    if is_in_queue and not is_host:
+        # client already in queue
+
+        # here will be check if client is finishel queue
+        pass
+    elif not is_host:
+        # first join to queue
+        session['in_queues'][queue_id] = {
+            'id': queue_id,
+            'position': len(queue['queue']),
+            'is_next': len(queue['queue']) == 0,
+            'is_finished': False,
+        }
+        session['status'] = 'in_queue'
+        session['last_activ'] = datetime.now()
+
+        queue['queue'].append({
+            'id': session['id'],
+            'name': session['user_name'],
+            'status': session['user_status'],
+            'position': len(queue['queue']),
+            'is_next': len(queue['queue']) == 0,
+        })
+
+        data['user'] = session['in_queues'][queue_id]
+    
+    data['user']['name'] = session['user_name']
+    data['user']['status'] = session['user_status']
+    data['user']['isHost'] = is_host
+    
+    if is_host:
+        data['queue'] = limit_data_queue(queue_id, 'host')
+    elif is_perm:
+        data['queue'] = limit_data_queue(queue_id, 'perm_user')
+    else:
+        data['queue'] = limit_data_queue(queue_id)
+
+    data['queue']['total'] = len(data['queue']['queue'])
+
+    return render_template('queue_page.html.j2', data=data)
+
+# 404 error handler
+@app.errorhandler(404)
+def page_not_found(e):
+    print(e)
+    return render_template('404_page.html.j2', data={'message': 'Сторінка не знайдена.'}), 404
 
 # Handler before 
 @app.before_request
@@ -257,9 +353,10 @@ def setUp():
         queues_preview[item['id']] = {
             '_id': item['_id'],
             'id': item['id'],
+            'hostId': item['hostId'],
             'name': item['name'],
             'description': item['description'],
-            'status': item['status']
+            'status': item['status'],
         }
 
 if __name__ == '__main__':
@@ -280,3 +377,6 @@ if __name__ == '__main__':
         print('closing session_cheker_tread...')
         session_cheker_tread.join()
         client.close()
+
+        for id in session.keys():
+            clean_session(id)

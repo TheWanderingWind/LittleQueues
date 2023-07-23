@@ -3,7 +3,6 @@
 {% block title %}Головна сторінка{% endblock %}
 
 {% block styles %}
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     .zone {
         position: absolute;
@@ -23,7 +22,27 @@
 
 
 <!-- in future here will be blok with show navigation for user --> 
-{% block content %}{% endblock %}
+{% block content %}
+<label>Для того, щоб заходити чи створювати черги вам треба ввести ім'я</label>
+<div style="display: flex;align-items: center;margin: 2%;">
+    <label for="input-client-name" style="margin-right: 2%;">Ваше ім'я</label>
+    <input type="text" id="input-client-name" name="input-client-name"> 
+</div>
+
+<div style="
+    display: flex;
+    margin-top: 10%;
+    padding: 2%;
+    flex-direction: column;
+">
+        <label>Створити свою чергу:</label>
+        <label for="input-new-queue-name">Назва черги</label>
+        <input type="text" id="input-new-queue-name" name="input-new-queue-name">
+        <label for="input-new-queue-description">Опис черги</label>
+        <input type="text" id="input-new-queue-description" name="input-new-queue-description">
+        <button id="button-new-queue">Створити</button>
+    </div>
+{% endblock %}
 
 
 {% block listTitle %}Список існуючих черг:{% endblock %}
@@ -32,11 +51,9 @@
 <script>
     let pageNum = 1
 
-    
     async function updateQueuesList() {
         let listData;  
         const selector = document.getElementById('page-size-select');
-
         await $.ajax({
             url: '/queue',
             method: 'GET',
@@ -53,17 +70,18 @@
                 console.log(error);
             }
         })
-
         if (totalItems == 0) { return }
 
         const listObj = document.getElementById('list-object');
         listObj.innerHTML = '';
 
         for (let i = 0; i < listData.length; i++) {
+            {# Element of list #}
             let listElement = document.createElement('li');
             listElement.classList.add('li');
             listElement.classList.add(i % 2 == 0 ? 'li-0' : 'li-1');
 
+            {# This element for show/hide detail of queue #}
             let listClickZone = document.createElement('div');
             listClickZone.classList.add('zone')
             listClickZone.addEventListener('click', function (event) {
@@ -78,17 +96,20 @@
                     }
                 });
 
+            {# Name of queue #}
             let listElemTitle = document.createElement('h3');
             listElemTitle.textContent = listData[i]['name'];
             listElemTitle.style.display = 'inline-block';
             listElemTitle.style.marginBlockStart = '0.25em';
             listElemTitle.style.marginBlockEnd = '0.25em';
 
+            {# description of queue #}
             let listElemDetal = document.createElement('p');
             listElemDetal.style.display = 'none';
             listElemDetal.classList.add('to-hide')
             listElemDetal.textContent = listData[i]['description'];
 
+            {# Link for joing to queue #}
             let listElemLink = document.createElement('a');
             listElemLink.textContent = 'Приєднатися до черги';
             listElemLink.style.display = 'none';
@@ -112,10 +133,6 @@
     handlePageButtonClick = function (event) {
         pageNum = event.target.dataset.page;
         updateQueuesList();
-    }
-
-    function toggleDetails(listElement) {
-
     }
 
     updateQueuesList()

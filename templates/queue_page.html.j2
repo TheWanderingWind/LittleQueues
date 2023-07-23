@@ -1,0 +1,80 @@
+{% extends 'base.html.j2' %}
+
+{% block title %}Черга {{ data.queue.name }}{% endblock %}
+
+{% block styles %}{% endblock %}
+
+{% block pageTitleContent %}{{data.queue.name}}{% endblock %}
+{% set data.userName = data.user.name %}
+
+{% block navigation %}
+<div>
+    <p>ID черги: {{ data.queue.id }}</p>
+    {% if data.user.status != 'temporary' %}
+    <p>Власник черги: {{ data.queue.hostName }}</p>
+    {% endif %}
+    <p>Загалом в черзі: {{ data.queue.total }}</p>
+</div>
+{% endblock %}
+
+{% if data.user.isHost %}
+    {% set includeMyList = True %}
+    {% block listTitle %}Учасники в черзі:{% endblock %}
+{% esle %}
+    {% block content %}
+<div>
+        {% if data.user.position != 0 %}
+    <h3>Ваша позиція в черзі: {{data.user.position}}</h3>
+    <h2 style="display: none;">Ви наступні! вас можуть викликати в найближчий час!</h2>
+        {% else %}
+    <h3 style="display: none;">Ваша позиція в черзі: {{data.user.position}}</h3>
+    <h2>Ви наступні! вас можуть викликати в найближчий час!</h2>
+        {% endif %}
+</div>
+    {% endblock %}
+{% endif %}
+
+{% block scripts %}
+<script>
+    let pageNum = 1
+
+    async function updateParticipantList() {
+        let listData
+        const selector = document.getElementById('page-size-select')
+        await $.ajax({
+            url: '/queue/user',
+            method: 'GET',
+            data: {
+               page: pageNum,
+               per_page: selector.value, 
+            },
+            dataType: 'json',
+            success: function(response) {
+                listData = response.data;
+                totalItems = response.queue_len;
+            },
+            error: function(xhr, status, error) {
+                console.log(error);
+            }
+        })
+        if (totalItems == 0) { return }
+
+        const listObj = document.getElementById('list-object');
+        listObj.innerHTML = '';
+
+        for (let i = 0; i < listData.length; i++) {
+            let listElement = document.createElement('li');
+            listElement.classList.add('li');
+            listElement.classList.add(i % 2 == 0 ? 'li-0' : 'li-1');
+
+            /* This in future will be control buttons for host
+            // for show/hide control buttons
+            let listClickZone = document.createElement('div');
+            
+            */
+        }
+    }
+</script>
+{% endblock %}
+
+

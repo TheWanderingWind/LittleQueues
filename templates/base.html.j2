@@ -23,7 +23,7 @@
         .li {
             flex-direction: column;
             border-radius: 5px;
-            min-width: 300px;
+            min-width: 160px;
             margin-bottom: 7px; 
             padding: 2%;
             position: relative;
@@ -38,18 +38,22 @@
         }
 
         .list-block {
-            display: inline-block;
-            right: 5%;
-            min-width: 50%;
+            display: flex;
+            min-width: 45%;
             background-color: #bfd5d6;
             border-radius: 5px;
             padding: 2%;
+            flex-direction: column;
         }
 
         .content-block {
-            display: inline-block;
-            left: 5%;
+            display: flex;
             background-color: #b8c3cf;
+            flex-direction: column;
+            border-radius: 5px;
+            padding: 2%;
+            width: 35%;
+            margin-left: 5%;
         }
 
         .header {
@@ -59,8 +63,10 @@
         }
 
         .main {
-            display: block;
+            display: flex;
             padding: 5%;
+            flex-direction: row;
+            justify-content: space-between;
         }
 
         .footer {
@@ -77,6 +83,7 @@
             margin: 1px;
         }
     </style>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body>
     <header class="header">
@@ -87,8 +94,9 @@
                 {% if data.userName %}
                 <h3>Вітаємо вас, {{data.user_name}}!</h3>
                 {% else %}
-                <h3>Вітаємо вас!</h3>
-                <h5>Ви зайшли як незареєстрований учасник. Вашу поточну сесію закриють, при тривалій неактивності.</h5>
+                <h3 style="margin-block-end: 0.5em;">Вітаємо вас!</h3>
+                <h5 style="margin-block-start: 0.5em;">
+                Ви зайшли як незареєстрований учасник. Вашу поточну сесію закриють, при тривалій неактивності.</h5>
                 {% endif %}
                 <!-- Here in future will be Sing on/Log in -->
             </div>
@@ -123,7 +131,10 @@
                 <button id="before-page" class="permanent-object page-button"><<</button>
                 <button id="next-page" class="permanent-object page-button">>></button>
             </div>
-            <ul id="list-object">
+            <ul id="list-object" style="
+                display: flex;
+                flex-direction: column;
+            ">
                 <!-- here element must be created by scripts -->
             </ul>
         </div>
