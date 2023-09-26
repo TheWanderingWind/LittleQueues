@@ -3,6 +3,8 @@ import time
 from flask_testing import TestCase
 from pyServer import app, setUp
 
+from selenium import webdriver
+
 class MyTest(TestCase):
     def create_app(self):
         app.config['TESTING'] = True

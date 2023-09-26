@@ -2,7 +2,14 @@
 
 {% block title %}Черга {{ data.queue.name }}{% endblock %}
 
-{% block styles %}{% endblock %}
+{% block styles %}
+<style>
+    .user-status {
+        color: #7a7a7a;
+        text-decoration: underline;
+    }
+</style>
+{% endblock %}
 
 {% block pageTitleContent %}{{data.queue.name}}{% endblock %}
 {% set data.userName = data.user.name %}
@@ -24,25 +31,37 @@
     {% block content %}
 <div>
         {% if data.user.position != 0 %}
-    <h3>Ваша позиція в черзі: {{data.user.position}}</h3>
-    <h2 style="display: none;">Ви наступні! вас можуть викликати в найближчий час!</h2>
+    <h3 id="user-position">Ваша позиція в черзі: {{data.user.position}}</h3>
+    <h2 id="user-message" style="display: none;">Ви наступні! вас можуть викликати в найближчий час!</h2>
         {% else %}
-    <h3 style="display: none;">Ваша позиція в черзі: {{data.user.position}}</h3>
-    <h2>Ви наступні! вас можуть викликати в найближчий час!</h2>
+    <h3 id="user-position" style="display: none;">Ваша позиція в черзі: {{data.user.position}}</h3>
+    <h2 id="user-message">Ви наступні! вас можуть викликати в найближчий час!</h2>
         {% endif %}
 </div>
     {% endblock %}
 {% endif %}
 
 {% block scripts %}
+{% if data.user.isHost %}
 <script>
     let pageNum = 1
+
+    handlePageButtonClick = function(event) {
+        if (element.classList.contains('before-page')) {
+            pageNum = Math.min(pageNum - 1, 1)
+        } else if (element.classList.contains('next-page')) {
+            pageNum += 1
+        } else {
+            pageNum = this.dataset.page
+        }
+        updateParticipantList()
+    }
 
     async function updateParticipantList() {
         let listData
         const selector = document.getElementById('page-size-select')
         await $.ajax({
-            url: '/queue/user',
+            url: `${window.location.href}/user`,
             method: 'GET',
             data: {
                page: pageNum,
@@ -51,30 +70,74 @@
             dataType: 'json',
             success: function(response) {
                 listData = response.data;
-                totalItems = response.queue_len;
+                totalItems = response.userLen;
             },
             error: function(xhr, status, error) {
                 console.log(error);
             }
         })
+
+        createPaginationButtons()
         if (totalItems == 0) { return }
 
         const listObj = document.getElementById('list-object');
         listObj.innerHTML = '';
 
         for (let i = 0; i < listData.length; i++) {
-            let listElement = document.createElement('li');
+
+            let listElement = createListTemplate();
             listElement.classList.add('li');
             listElement.classList.add(i % 2 == 0 ? 'li-0' : 'li-1');
 
+            let listElemHeadDiv = listElement.getElementsByClassName('head');
+            let listElemHideDiv = listElement.getElementsByClassName('list-hiden-content');
+
+            listObj.appendChild(listElement);
+
+            listElemName = document.createElement('label');
+            listElemStatus = document.createElement('label');
+            listElemPosition = document.createElement('label');
+
+            listElemName.textContent = listData[i].user.name;
+
+            if (listData[i].user.name == 'temporary') {
+                listElemStatus.textContent = 'тимчасовий користувач';
+            } else if (listData[i].user.name == 'permanent') {
+                listElemStatus.textContent = 'постійний користувач';
+                listElemStatus.style.color = '#3fa064';
+            } else if (listData[i].user.name == 'admin') {
+                listElemStatus.textContent = 'постійний користувач';
+                listElemStatus.style.color = '#3fa064';
+            } else {
+                listElemStatus.textContent = 'невідомий користувач';
+                listElemStatus.style.color = '#a03f3f';
+            }
+            listElemStatus.classList.add('user-status');
+
+            listElemPosition.textContent = listData[i]
+
+            listElemHeadDiv.appendChild(listElemName)
+            listElemHeadDiv.appendChild(listElemStatus)
+            listElemHeadDiv.appendChild(listElemPosition)
+
             /* This in future will be control buttons for host
-            // for show/hide control buttons
-            let listClickZone = document.createElement('div');
-            
+            // to expel user from queue
+            let listButtExpel = document.createElement('button');
+            // to call this user immediately
+            let listButtCall = document.createElement('button');
+            // to move user up
+            let listButtCall = document.createElement('button');
+            // to move user down
+            let listButtCall = document.createElement('button');
             */
         }
     }
+
+    setInterval(updateParticipantList, 20000);
 </script>
+{% else %}
+<script>
+    
+</script>
+{% endif %}
 {% endblock %}
-
-

@@ -21,7 +21,7 @@
 
         /* General options for list element */
         .li {
-            flex-direction: column;
+            display: disclosure-closed;
             border-radius: 5px;
             min-width: 160px;
             margin-bottom: 7px; 
@@ -91,8 +91,8 @@
             {% block pageTitleContent %}{% endblock %}
 
             <div style="">
-                {% if data.userName %}
-                <h3>Вітаємо вас, {{data.user_name}}!</h3>
+                {% if user.user_name %}
+                <h3>Вітаємо вас, {{user.user_name}}!</h3>
                 {% else %}
                 <h3 style="margin-block-end: 0.5em;">Вітаємо вас!</h3>
                 <h5 style="margin-block-start: 0.5em;">
@@ -128,8 +128,8 @@
                         <option value="50">50</option>
                     </select>
                 </div>
-                <button id="before-page" class="permanent-object page-button"><<</button>
-                <button id="next-page" class="permanent-object page-button">>></button>
+                <button id="before-page" class="permanent-object page-button" click="handlePageButtonClick"><<</button>
+                <button id="next-page" class="permanent-object page-button" click="handlePageButtonClick">>></button>
             </div>
             <ul id="list-object" style="
                 display: flex;
@@ -154,7 +154,15 @@
         // in future here will be request for change language
 
         {% if includeMyList %}
+
+        {# `handlePageButtonClick` is function name for handler for pagination buttons. #}
+        {# It must be redefined for correct operation. #}
+        {# It must take one argument (event). #}
+        {# In this function shoud make request to load page, recreate list, #}
+        {# update `totalItems` and call `createPaginationButtons` #}
         var handlePageButtonClick;
+        
+        {# This var for set total items and need for correct calculate number of page #}
         var totalItems = 0;
 
         function createPaginationButtons(event=NaN) {
@@ -183,7 +191,34 @@
             }
         }
 
-        document.getElementById('page-size-select').addEventListener('change', createPaginationButtons)
+        document.getElementById('page-size-select').addEventListener('change', createPaginationButtons);
+
+        {# Template creator of list element with 'head' and 'hide' divs #}
+        {# With this template, if client click on 'head' div, 'hide' div will be show or hidden #}
+        function createListTemplate() {
+            let li = document.createElement('li');
+
+            let head = document.createElement('div');
+            head.style.display = 'flex';
+            head.classList.add('head');
+            head.addEventListener('click', function (event) {
+                let hidden = this.parentNode.getElementsByClassName('list-hiden-content');
+
+                if (hidden.style.display == 'none') {
+                    this.parentNode.style.listStyleType = 'disclosure-open'
+                    hidden.style.display == 'flex';
+                } else {
+                    this.parentNode.style.listStyleType = 'disclosure-closed'
+                    hidden.style.display == 'none';
+                }
+            })
+
+            hiddenContent = document.createElement('div');
+            hiddenContent.style.display = 'none';
+            hiddenContent.style.flexDirection = 'column';
+
+            return li;
+        }
         {% endif %}
 
 

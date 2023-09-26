@@ -23,10 +23,15 @@
 
 <!-- in future here will be blok with show navigation for user --> 
 {% block content %}
+{% if user.status == "temporary" %}
 <label>Для того, щоб заходити чи створювати черги вам треба ввести ім'я</label>
 <div style="display: flex;align-items: center;margin: 2%;">
     <label for="input-client-name" style="margin-right: 2%;">Ваше ім'я</label>
+    {% if user.name == none %}
     <input type="text" id="input-client-name" name="input-client-name"> 
+    {% else %}
+    <input type="text" id="input-client-name" name="input-client-name" value="{{user.name}}">
+    {% endif %}
 </div>
 
 <div style="
@@ -40,8 +45,11 @@
         <input type="text" id="input-new-queue-name" name="input-new-queue-name">
         <label for="input-new-queue-description">Опис черги</label>
         <input type="text" id="input-new-queue-description" name="input-new-queue-description">
-        <button id="button-new-queue">Створити</button>
+        <button id="button-new-queue" click="createQueue">Створити</button>
     </div>
+{% else %}
+<div>Цей функціонал ще не розроблений</div>
+{% endif %}
 {% endblock %}
 
 
@@ -50,6 +58,7 @@
 {% block scripts %}
 <script>
     let pageNum = 1
+    let name = {{ user.name }}
 
     async function updateQueuesList() {
         let listData;  
@@ -133,6 +142,43 @@
     handlePageButtonClick = function (event) {
         pageNum = event.target.dataset.page;
         updateQueuesList();
+    }
+
+    function createQueue(event) {
+        if check_client_name() {
+            await $.ajax({
+                url: '/queue',
+                method: 'POST',
+                data: {
+                    user_name: name,
+                    queue_name: document.getElementById("input-new-queue-name").value
+                    queue_description: document.getElementById("input-new-queue-description").value
+                },
+                success: function(response) {
+                    var newTab = window.open();
+                    newTab.document.write(response);
+                },
+                error: function(xhr, status, error) {
+                    console.log(error);
+                }
+            })
+        }
+    }
+
+    function check_client_name() {
+        if (user.status == 'temporary') {
+            var clientNameInput = document.getElementById('input-client-name');
+            if (clientNameInput.value == '') {
+                alert("Будь ласка, введіть ім'я.");
+                return false;
+            } else {
+                name = clientNameInput.value
+            }
+        } else {
+            alert("Цей функціонал ще не допрацьований.")
+            return false
+        }
+        return true
     }
 
     updateQueuesList()
